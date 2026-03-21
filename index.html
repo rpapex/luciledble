@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Controllo LED ESP32</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding-top: 50px; }
+        button { 
+            padding: 20px 40px; font-size: 18px; margin: 10px; border: none; border-radius: 10px; cursor: pointer; width: 80%; max-width: 300px;
+        }
+        .btn-connect { background: #2196F3; color: white; }
+        .btn-on { background: #4CAF50; color: white; }
+        .btn-off { background: #f44336; color: white; }
+        #status { margin-top: 20px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h2>Controllo 48 LED</h2>
+    
+    <button class="btn-connect" onclick="connetti()">🔗 CONNETTI LED</button>
+    <br><br>
+    <button class="btn-on" onclick="invia('ON')">ACCENDI (BIANCO)</button>
+    <button class="btn-off" onclick="invia('OFF')">SPEGNI</button>
+    
+    <div id="status">Stato: Disconnesso</div>
+
+    <script>
+        let dispositivoGatt = null;
+        let caratteristicaLed = null;
+
+        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+        async function connetti() {
+            try {
+                document.getElementById('status').innerText = "Cercando...";
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'LUCE_48LED' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                caratteristicaLed = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                
+                document.getElementById('status').innerText = "CONNESSO ✅";
+                document.getElementById('status').style.color = "#4CAF50";
+            } catch (error) {
+                console.log(error);
+                document.getElementById('status').innerText = "Errore: " + error;
+            }
+        }
+
+        async function invia(messaggio) {
+            if (!caratteristicaLed) {
+                alert("Prima connetti il Bluetooth!");
+                return;
+            }
+            const encoder = new TextEncoder();
+            await caratteristicaLed.writeValue(encoder.encode(messaggio));
+        }
+    </script>
+</body>
+</html>
