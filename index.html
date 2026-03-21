@@ -1,29 +1,77 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-    <title>Controllo LED ESP32</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Controllo 48 LED</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Luci LED">
+    
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/702/702797.png">
+
     <style>
-        body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding-top: 50px; }
-        button { 
-            padding: 20px 40px; font-size: 18px; margin: 10px; border: none; border-radius: 10px; cursor: pointer; width: 80%; max-width: 300px;
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            text-align: center; 
+            background: #121212; 
+            color: white; 
+            margin: 0;
+            padding-top: env(safe-area-inset-top); /* Gestisce la tacca dell'iPhone */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
         }
-        .btn-connect { background: #2196F3; color: white; }
-        .btn-on { background: #4CAF50; color: white; }
-        .btn-off { background: #f44336; color: white; }
-        #status { margin-top: 20px; color: #aaa; }
+        h2 { margin-bottom: 30px; font-weight: 300; letter-spacing: 1px; }
+        
+        .container { width: 90%; max-width: 400px; }
+
+        button { 
+            padding: 18px; 
+            font-size: 16px; 
+            font-weight: bold;
+            margin: 10px 0; 
+            border: none; 
+            border-radius: 15px; 
+            cursor: pointer; 
+            width: 100%;
+            transition: transform 0.1s, opacity 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:active { transform: scale(0.96); opacity: 0.8; }
+
+        .btn-connect { background: linear-gradient(135deg, #2196F3, #00BCD4); color: white; }
+        .btn-on { background: linear-gradient(135deg, #4CAF50, #8BC34A); color: white; }
+        .btn-off { background: linear-gradient(135deg, #f44336, #e91e63); color: white; }
+        
+        #status { 
+            margin-top: 25px; 
+            font-size: 14px; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888; 
+        }
+
+        .connected { color: #4CAF50 !important; font-weight: bold; }
+        .disconnected { color: #f44336 !important; }
     </style>
 </head>
 <body>
 
-    <h2>Controllo 48 LED</h2>
-    
-    <button class="btn-connect" onclick="connetti()">🔗 CONNETTI LED</button>
-    <br><br>
-    <button class="btn-on" onclick="invia('ON')">ACCENDI (BIANCO)</button>
-    <button class="btn-off" onclick="invia('OFF')">SPEGNI</button>
-    
-    <div id="status">Stato: Disconnesso</div>
+    <div class="container">
+        <h2>💡 CONTROLLO LED</h2>
+        
+        <button id="btnConnect" class="btn-connect" onclick="connetti()">🔗 CONNETTI DISPOSITIVO</button>
+        <br><br>
+        <button class="btn-on" onclick="invia('ON')">ACCENDI</button>
+        <button class="btn-off" onclick="invia('OFF')">SPEGNI</button>
+        
+        <div id="status">Stato: Disconnesso</div>
+    </div>
 
     <script>
         let dispositivoGatt = null;
@@ -34,31 +82,61 @@
 
         async function connetti() {
             try {
-                document.getElementById('status').innerText = "Cercando...";
+                aggiornaStato("Cercando...", "");
+
+                // Scansione dispositivi
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [{ name: 'LUCE_48LED' }],
                     optionalServices: [SERVICE_UUID]
                 });
 
+                // Gestione disconnessione improvvisa
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+
+                aggiornaStato("Connessione in corso...", "");
+                
                 const server = await device.gatt.connect();
                 const service = await server.getPrimaryService(SERVICE_UUID);
                 caratteristicaLed = await service.getCharacteristic(CHARACTERISTIC_UUID);
                 
-                document.getElementById('status').innerText = "CONNESSO ✅";
-                document.getElementById('status').style.color = "#4CAF50";
+                dispositivoGatt = device;
+                aggiornaStato("CONNESSO ✅", "connected");
+                document.getElementById('btnConnect').innerText = "DISPOSITIVO ACCOPPIATO";
+                
             } catch (error) {
                 console.log(error);
-                document.getElementById('status').innerText = "Errore: " + error;
+                aggiornaStato("Errore connessione", "disconnected");
             }
+        }
+
+        function onDisconnected(event) {
+            const device = event.target;
+            console.log(`Dispositivo ${device.name} disconnesso`);
+            aggiornaStato("DISCONNESSO ❌", "disconnected");
+            caratteristicaLed = null;
+            document.getElementById('btnConnect').innerText = "🔗 RICONNETTI";
         }
 
         async function invia(messaggio) {
             if (!caratteristicaLed) {
-                alert("Prima connetti il Bluetooth!");
+                alert("Per favore, connetti prima il Bluetooth!");
                 return;
             }
-            const encoder = new TextEncoder();
-            await caratteristicaLed.writeValue(encoder.encode(messaggio));
+            try {
+                const encoder = new TextEncoder();
+                await caratteristicaLed.writeValue(encoder.encode(messaggio));
+                console.log("Inviato: " + messaggio);
+            } catch (error) {
+                console.log("Errore invio: " + error);
+                aggiornaStato("Errore invio dati", "disconnected");
+            }
+        }
+
+        function aggiornaStato(testo, classe) {
+            const s = document.getElementById('status');
+            s.innerText = "Stato: " + testo;
+            s.className = ""; // reset classi
+            if (classe) s.classList.add(classe);
         }
     </script>
 </body>
