@@ -36,7 +36,7 @@
             try {
                 document.getElementById('status').innerText = "Cercando...";
                 const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
+                    filters: [{ name: 'LUCE_48LED' }],
                     optionalServices: [SERVICE_UUID]
                 });
 
