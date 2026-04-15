@@ -86,8 +86,7 @@
 
                 // Scansione dispositivi
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'LAMPADA' }], 
-                    optionalServices: [SERVICE_UUID]
+                filters: [{ services: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b'] }]
                 });
 
                 // Gestione disconnessione improvvisa
