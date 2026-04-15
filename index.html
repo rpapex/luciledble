@@ -86,7 +86,7 @@
 
                 // Scansione dispositivi
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'LUCE_48LED' }],
+                    filters: [{ namePrefix: 'LAMPADA' }], 
                     optionalServices: [SERVICE_UUID]
                 });
 
