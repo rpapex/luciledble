@@ -5,18 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Controllo Lampada Pro</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
         .card { background: #1e1e1e; border-radius: 15px; padding: 20px; max-width: 400px; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        h2 { color: #00adb5; margin-bottom: 20px; }
-        label { display: block; text-align: left; margin: 15px 0 5px 10%; font-size: 14px; color: #aaa; }
-        select, input { width: 80%; padding: 10px; border-radius: 8px; border: none; background: #333; color: white; font-size: 16px; margin-bottom: 10px; }
-        button { width: 85%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .info-box { background: #252525; border-left: 4px solid #00adb5; padding: 10px; margin: 15px 0; text-align: left; }
+        .info-box p { margin: 5px 0; font-size: 14px; }
+        .valore { color: #00adb5; font-weight: bold; float: right; }
+        h2 { color: #00adb5; }
+        label { display: block; text-align: left; margin: 15px 0 5px 5%; font-size: 14px; color: #aaa; }
+        select, input { width: 90%; padding: 10px; border-radius: 8px; border: none; background: #333; color: white; margin-bottom: 10px; }
+        button { width: 95%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
         .btn-connect { background: #00adb5; color: white; }
-        .btn-on { background: #4caf50; color: white; width: 40%; }
-        .btn-off { background: #f44336; color: white; width: 40%; }
-        .btn-save { background: #ff9800; color: white; margin-top: 20px; }
-        #status { margin-top: 15px; font-size: 13px; color: #777; }
-        .row { display: flex; justify-content: space-around; width: 85%; margin: 0 auto; }
+        .row { display: flex; justify-content: space-between; width: 95%; margin: 0 auto; }
+        .btn-on { background: #4caf50; color: white; width: 48%; }
+        .btn-off { background: #f44336; color: white; width: 48%; }
+        .btn-save { background: #ff9800; color: white; }
     </style>
 </head>
 <body>
@@ -25,9 +27,11 @@
     <h2>💡 LAMPADA SMART</h2>
     
     <button class="btn-connect" id="connectBtn" onclick="connetti()">CONNETTI BLUETOOTH</button>
-    <p id="status">Stato: Disconnesso</p>
 
-    <hr style="border: 0.5px solid #333; margin: 20px 0;">
+    <div class="info-box">
+        <p>Ora RTC Lampada: <span id="ora-rtc" class="valore">--:--</span></p>
+        <p>Tramonto Previsto: <span id="ora-tramonto" class="valore">--:--</span></p>
+    </div>
 
     <div class="row">
         <button class="btn-on" onclick="inviaComando('ON')">ACCENDI</button>
@@ -36,77 +40,80 @@
 
     <hr style="border: 0.5px solid #333; margin: 20px 0;">
 
-    <h3>⚙️ Impostazioni Auto</h3>
-
-    <label>Programmazione Giornaliera:</label>
+    <label>Programmazione:</label>
     <select id="sched">
         <option value="1">ATTIVA</option>
         <option value="0">DISATTIVA</option>
     </select>
 
-    <label>Durata accensione (minuti):</label>
-    <input type="number" id="durata" value="60" min="1" max="480">
+    <label>Durata (minuti):</label>
+    <input type="number" id="durata" value="60">
 
-    <label>Logica Tramonto (RTC):</label>
+    <label>Logica:</label>
     <select id="tramonto">
         <option value="1">ACCENDI AL TRAMONTO</option>
-        <option value="0">ORARIO FISSO (es. 19:00)</option>
+        <option value="0">SOLO MANUALE</option>
     </select>
 
-    <button class="btn-save" onclick="salvaImpostazioni()">💾 SALVA NELLA LAMPADA</button>
+    <button class="btn-save" onclick="salvaImpostazioni()">💾 SALVA IMPOSTAZIONI</button>
 </div>
 
 <script>
     const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
     const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-
-    let dispositivoBLE;
     let caratteristicaBLE;
 
     async function connetti() {
         try {
-            document.getElementById('status').innerText = "Cercando dispositivo...";
-            dispositivoBLE = await navigator.bluetooth.requestDevice({
+            const dispositivo = await navigator.bluetooth.requestDevice({
                 filters: [{ namePrefix: 'LAMPADA' }],
                 optionalServices: [SERVICE_UUID]
             });
-
-            const server = await dispositivoBLE.gatt.connect();
+            const server = await dispositivo.gatt.connect();
             const service = await server.getPrimaryService(SERVICE_UUID);
             caratteristicaBLE = await service.getCharacteristic(CHARACTERISTIC_UUID);
 
-            document.getElementById('status').innerText = "Stato: Connesso a " + dispositivoBLE.name;
-            document.getElementById('connectBtn').style.background = "#4caf50";
+            // Abilita la ricezione di dati dall'ESP32
+            await caratteristicaBLE.startNotifications();
+            caratteristicaBLE.addEventListener('characteristicvaluechanged', gestisciDatiRicevuti);
+
             document.getElementById('connectBtn').innerText = "CONNESSO ✅";
-        } catch (error) {
-            console.log("Errore: " + error);
-            document.getElementById('status').innerText = "Errore Connessione";
+            document.getElementById('connectBtn').style.background = "#4caf50";
+        } catch (e) { console.error(e); }
+    }
+
+    function gestisciDatiRicevuti(event) {
+        const value = new TextDecoder().decode(event.target.value);
+        console.log("Ricevuto: " + value);
+
+        if (value.startsWith("DATA:")) {
+            // Formato: DATA:19:30|1140
+            const parti = value.split('|');
+            const oraRtc = parti[0].replace("DATA:", "");
+            const minutiTramonto = parseInt(parti[1]);
+
+            // Converti minuti totali in HH:MM
+            const h = Math.floor(minutiTramonto / 60);
+            const m = minutiTramonto % 60;
+            const oraTramonto = h.toString().padStart(2, '0') + ":" + m.toString().padStart(2, '0');
+
+            document.getElementById('ora-rtc').innerText = oraRtc;
+            document.getElementById('ora-tramonto').innerText = oraTramonto;
         }
     }
 
-    async function inviaComando(comando) {
-        if (!caratteristicaBLE) {
-            alert("Prima connetti il Bluetooth!");
-            return;
-        }
-        const encoder = new TextEncoder();
-        await caratteristicaBLE.writeValue(encoder.encode(comando));
-        console.log("Inviato: " + comando);
+    async function inviaComando(cmd) {
+        if (!caratteristicaBLE) return;
+        await caratteristicaBLE.writeValue(new TextEncoder().encode(cmd));
     }
 
     async function salvaImpostazioni() {
         const s = document.getElementById('sched').value;
         const d = document.getElementById('durata').value;
         const t = document.getElementById('tramonto').value;
-        
-        // Stringa compressa per l'ESP32: SET:attivo:minuti:tramonto
-        // Esempio: SET:1:120:1
-        const stringaComando = `SET:${s}:${d}:${t}`;
-        
-        await inviaComando(stringaComando);
-        alert("Impostazioni salvate con successo!");
+        await inviaComando(`SET:${s}:${d}:${t}`);
+        alert("Inviato!");
     }
 </script>
-
 </body>
 </html>
