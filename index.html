@@ -27,6 +27,7 @@
     <div class="info">
         <p>Ora Lampada: <span id="rtc" class="val">--:--</span></p>
         <p>Tramonto Oggi: <span id="tra" class="val">--:--</span></p>
+        <p>Stato Memoria: <span id="mem" class="val">Sconosciuto</span></p>
     </div>
 
     <div style="display: flex; justify-content: space-between; width: 95%; margin: auto;">
@@ -58,13 +59,23 @@
             const service = await server.getPrimaryService(S_UUID);
             charBLE = await service.getCharacteristic(C_UUID);
             await charBLE.startNotifications();
+            
             charBLE.addEventListener('characteristicvaluechanged', (e) => {
                 const v = new TextDecoder().decode(e.target.value);
                 if (v.startsWith("DATA:")) {
+                    // DATA:HH:MM | TRAMONTO | SCHED | DURATA | USA_TRAMONTO
                     const p = v.split('|');
                     document.getElementById('rtc').innerText = p[0].replace("DATA:","");
+                    
                     const tr = parseInt(p[1]);
                     document.getElementById('tra').innerText = Math.floor(tr/60).toString().padStart(2,'0')+":"+(tr%60).toString().padStart(2,'0');
+                    
+                    // Aggiorna i campi con i dati reali dalla memoria
+                    document.getElementById('s').value = p[2];
+                    document.getElementById('d').value = p[3];
+                    document.getElementById('t').value = p[4];
+                    document.getElementById('mem').innerText = "Sincronizzato";
+                    document.getElementById('mem').style.color = "#4caf50";
                 }
             });
             document.getElementById('btnC').innerText = "CONNESSO ✅";
@@ -76,7 +87,8 @@
     
     function salva() {
         const msg = `SET:${document.getElementById('s').value}:${document.getElementById('d').value}:${document.getElementById('t').value}`;
-        invia(msg); alert("Inviato!");
+        invia(msg);
+        alert("Inviato e salvato!");
     }
 
     window.onbeforeunload = () => { if(deviceBLE) deviceBLE.gatt.disconnect(); };
