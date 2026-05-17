@@ -7,15 +7,10 @@
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
         .card { background: #1e1e1e; border-radius: 15px; padding: 20px; max-width: 380px; margin: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .info { background: #252525; border-left: 4px solid #00adb5; padding: 10px; margin: 15px 0; text-align: left; font-size: 14px; }
-        .val { color: #00adb5; font-weight: bold; float: right; }
-        label { display: block; text-align: left; margin: 15px 0 5px 5%; font-size: 13px; color: #aaa; }
-        select, input { width: 90%; padding: 10px; border-radius: 8px; border: none; background: #333; color: white; margin-bottom: 10px; }
-        button { width: 95%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
-        .btn-blue { background: #00adb5; color: white; }
-        .btn-green { background: #4caf50; color: white; width: 46%; }
-        .btn-red { background: #f44336; color: white; width: 46%; }
-        .btn-orange { background: #ff9800; color: white; margin-top: 15px; }
+        button { width: 95%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .btn-blue   { background: #00adb5; color: white; }
+        .btn-green  { background: #4caf50; color: white; width: 46%; }
+        .btn-red    { background: #f44336; color: white; width: 46%; }
     </style>
 </head>
 <body>
@@ -24,27 +19,12 @@
     <h2>💡 LAMPADA PRO</h2>
     <button class="btn-blue" id="btnC" onclick="connetti()">CONNETTI BLUETOOTH</button>
 
-    <div class="info">
-        <p>Ora Lampada: <span id="rtc" class="val">--:--</span></p>
-        <p>Tramonto Oggi: <span id="tra" class="val">--:--</span></p>
-        <p>Stato Memoria: <span id="mem" class="val">Sconosciuto</span></p>
-    </div>
+    <hr style="border: 0.5px solid #333; margin: 20px 0;">
 
     <div style="display: flex; justify-content: space-between; width: 95%; margin: auto;">
         <button class="btn-green" onclick="invia('ON')">ACCENDI</button>
-        <button class="btn-red" onclick="invia('OFF')">SPEGNI</button>
+        <button class="btn-red"   onclick="invia('OFF')">SPEGNI</button>
     </div>
-
-    <hr style="border: 0.5px solid #333; margin: 20px 0;">
-
-    <label>Programmazione Auto:</label>
-    <select id="s"><option value="1">ATTIVA</option><option value="0">DISATTIVA</option></select>
-    <label>Durata (minuti):</label>
-    <input type="number" id="d" value="60">
-    <label>Logica:</label>
-    <select id="t"><option value="1">ACCENDI AL TRAMONTO</option><option value="0">DISATTIVA AUTO</option></select>
-
-    <button class="btn-orange" onclick="salva()">💾 SALVA IMPOSTAZIONI</button>
 </div>
 
 <script>
@@ -54,44 +34,31 @@
 
     async function connetti() {
         try {
-            deviceBLE = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'LAMPADA' }], optionalServices: [S_UUID] });
-            const server = await deviceBLE.gatt.connect();
+            deviceBLE = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: 'LAMPADA' }],
+                optionalServices: [S_UUID]
+            });
+            const server  = await deviceBLE.gatt.connect();
             const service = await server.getPrimaryService(S_UUID);
             charBLE = await service.getCharacteristic(C_UUID);
-            await charBLE.startNotifications();
-            
-            charBLE.addEventListener('characteristicvaluechanged', (e) => {
-                const v = new TextDecoder().decode(e.target.value);
-                if (v.startsWith("DATA:")) {
-                    // DATA:HH:MM | TRAMONTO | SCHED | DURATA | USA_TRAMONTO
-                    const p = v.split('|');
-                    document.getElementById('rtc').innerText = p[0].replace("DATA:","");
-                    
-                    const tr = parseInt(p[1]);
-                    document.getElementById('tra').innerText = Math.floor(tr/60).toString().padStart(2,'0')+":"+(tr%60).toString().padStart(2,'0');
-                    
-                    // Aggiorna i campi con i dati reali dalla memoria
-                    document.getElementById('s').value = p[2];
-                    document.getElementById('d').value = p[3];
-                    document.getElementById('t').value = p[4];
-                    document.getElementById('mem').innerText = "Sincronizzato";
-                    document.getElementById('mem').style.color = "#4caf50";
-                }
-            });
+
             document.getElementById('btnC').innerText = "CONNESSO ✅";
             document.getElementById('btnC').style.background = "#4caf50";
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+            alert("Connessione fallita: " + e.message);
+        }
     }
 
-    async function invia(msg) { if(charBLE) await charBLE.writeValue(new TextEncoder().encode(msg)); }
-    
-    function salva() {
-        const msg = `SET:${document.getElementById('s').value}:${document.getElementById('d').value}:${document.getElementById('t').value}`;
-        invia(msg);
-        alert("Inviato e salvato!");
+    async function invia(msg) {
+        if (charBLE) {
+            await charBLE.writeValue(new TextEncoder().encode(msg));
+        } else {
+            alert("Connettiti prima al dispositivo!");
+        }
     }
 
-    window.onbeforeunload = () => { if(deviceBLE) deviceBLE.gatt.disconnect(); };
+    window.onbeforeunload = () => { if (deviceBLE) deviceBLE.gatt.disconnect(); };
 </script>
 </body>
 </html>
