@@ -5,12 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lampada Smart Pro</title>
     <style>
+        * { box-sizing: border-box; }
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
         .card { background: #1e1e1e; border-radius: 15px; padding: 20px; max-width: 380px; margin: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         button { width: 95%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
-        .btn-blue   { background: #00adb5; color: white; }
-        .btn-green  { background: #4caf50; color: white; width: 46%; }
-        .btn-red    { background: #f44336; color: white; width: 46%; }
+        .btn-blue  { background: #00adb5; color: white; }
+        .btn-green { background: #4caf50; color: white; width: 46%; }
+        .btn-red   { background: #f44336; color: white; width: 46%; }
+
+        /* --- Indicatore batteria --- */
+        .batt-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin: 18px 0 6px;
+        }
+        .batt-icon {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .batt-body {
+            display: flex;
+            align-items: center;
+            border: 2px solid #555;
+            border-radius: 4px;
+            padding: 3px;
+            gap: 3px;
+            height: 26px;
+        }
+        .batt-tip {
+            width: 4px;
+            height: 10px;
+            background: #555;
+            border-radius: 0 2px 2px 0;
+        }
+        .batt-bar {
+            width: 14px;
+            height: 16px;
+            border-radius: 2px;
+            background: #333;
+            transition: background 0.4s;
+        }
+        .batt-bar.attiva { background: #4caf50; }
+        .batt-bar.bassa  { background: #ff9800; }
+        .batt-bar.critica{ background: #f44336; }
+        .batt-label {
+            font-size: 13px;
+            color: #aaa;
+            min-width: 80px;
+            text-align: left;
+        }
+        .batt-label span { color: #00adb5; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -19,7 +66,21 @@
     <h2>💡 LAMPADA PRO</h2>
     <button class="btn-blue" id="btnC" onclick="connetti()">CONNETTI BLUETOOTH</button>
 
-    <hr style="border: 0.5px solid #333; margin: 20px 0;">
+    <!-- Indicatore batteria -->
+    <div class="batt-wrap">
+        <div class="batt-icon">
+            <div class="batt-body">
+                <div class="batt-bar" id="b1"></div>
+                <div class="batt-bar" id="b2"></div>
+                <div class="batt-bar" id="b3"></div>
+                <div class="batt-bar" id="b4"></div>
+            </div>
+            <div class="batt-tip"></div>
+        </div>
+        <div class="batt-label">Batteria: <span id="battPct">--%</span><br><span id="battV" style="font-size:11px; color:#666;">--.- V</span></div>
+    </div>
+
+    <hr style="border: 0.5px solid #333; margin: 16px 0;">
 
     <div style="display: flex; justify-content: space-between; width: 95%; margin: auto;">
         <button class="btn-green" onclick="invia('ON')">ACCENDI</button>
@@ -32,6 +93,26 @@
     const C_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
     let charBLE, deviceBLE;
 
+    // Aggiorna le 4 tacche in base alla percentuale
+    function aggiornaBatteria(pct, volt) {
+        document.getElementById('battPct').innerText = pct + '%';
+        document.getElementById('battV').innerText   = parseFloat(volt).toFixed(2) + ' V';
+
+        // Quante tacche accendere (ogni tacca = 25%)
+        const tacche = Math.ceil(pct / 25);
+
+        // Colore in base alla carica
+        let classe = 'attiva';
+        if (pct <= 10) classe = 'critica';
+        else if (pct <= 30) classe = 'bassa';
+
+        for (let i = 1; i <= 4; i++) {
+            const bar = document.getElementById('b' + i);
+            bar.className = 'batt-bar';
+            if (i <= tacche) bar.classList.add(classe);
+        }
+    }
+
     async function connetti() {
         try {
             deviceBLE = await navigator.bluetooth.requestDevice({
@@ -42,8 +123,22 @@
             const service = await server.getPrimaryService(S_UUID);
             charBLE = await service.getCharacteristic(C_UUID);
 
+            await charBLE.startNotifications();
+            charBLE.addEventListener('characteristicvaluechanged', (e) => {
+                const v = new TextDecoder().decode(e.target.value);
+                // Formato: BATT:<percentuale>:<tensione>
+                if (v.startsWith('BATT:')) {
+                    const p = v.split(':');
+                    aggiornaBatteria(parseInt(p[1]), p[2]);
+                }
+            });
+
             document.getElementById('btnC').innerText = "CONNESSO ✅";
             document.getElementById('btnC').style.background = "#4caf50";
+
+            // Chiedi subito lo stato batteria senza aspettare i 30s
+            await charBLE.writeValue(new TextEncoder().encode('BATT?'));
+
         } catch (e) {
             console.error(e);
             alert("Connessione fallita: " + e.message);
