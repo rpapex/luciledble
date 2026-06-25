@@ -1,114 +1,258 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lampada Smart Pro</title>
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        .card { background: #1e1e1e; border-radius: 15px; padding: 20px; max-width: 380px; margin: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        button { width: 95%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; }
-        .btn-blue  { background: #00adb5; color: white; }
-        .btn-green { background: #4caf50; color: white; width: 46%; }
-        .btn-red   { background: #f44336; color: white; width: 46%; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lampada · Pannello di controllo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #15110d;
+        --surface: #211a14;
+        --surface-2: #2a2118;
+        --ember: #ff9d42;
+        --ember-soft: rgba(255, 157, 66, 0.35);
+        --ember-dim: #5a4129;
+        --text: #f3ead9;
+        --text-dim: #a89a86;
+        --danger: #e2574c;
+        --good: #8fbf6b;
+        --warn: #e0a23a;
+    }
 
-        /* --- Indicatore batteria --- */
-        .batt-wrap {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            margin: 18px 0 6px;
-        }
-        .batt-icon {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-        .batt-body {
-            display: flex;
-            align-items: center;
-            border: 2px solid #555;
-            border-radius: 4px;
-            padding: 3px;
-            gap: 3px;
-            height: 26px;
-        }
-        .batt-tip {
-            width: 4px;
-            height: 10px;
-            background: #555;
-            border-radius: 0 2px 2px 0;
-        }
-        .batt-bar {
-            width: 14px;
-            height: 16px;
-            border-radius: 2px;
-            background: #333;
-            transition: background 0.4s;
-        }
-        .batt-bar.attiva { background: #4caf50; }
-        .batt-bar.bassa  { background: #ff9800; }
-        .batt-bar.critica{ background: #f44336; }
-        .batt-label {
-            font-size: 13px;
-            color: #aaa;
-            min-width: 80px;
-            text-align: left;
-        }
-        .batt-label span { color: #00adb5; font-weight: bold; }
-    </style>
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: radial-gradient(ellipse at top, #1d1610 0%, var(--bg) 65%);
+        font-family: 'Space Grotesk', sans-serif;
+        color: var(--text);
+    }
+
+    .panel {
+        width: 100%;
+        max-width: 380px;
+        background: var(--surface);
+        border: 1px solid rgba(255, 157, 66, 0.08);
+        border-radius: 20px;
+        padding: 32px 28px;
+        box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.65);
+    }
+
+    .header { text-align: center; margin-bottom: 26px; }
+    .wordmark {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 28px;
+        letter-spacing: -0.01em;
+        margin: 0 0 6px;
+    }
+    .eyebrow {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin: 0;
+    }
+    .eyebrow span { color: var(--ember); }
+
+    .orb-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 28px;
+    }
+    .orb {
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #3a2e22, #18130e 70%);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.6s ease, box-shadow 0.6s ease;
+    }
+    .orb__core {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: var(--ember-dim);
+        transition: background 0.6s ease, box-shadow 0.6s ease;
+    }
+    .orb.acceso {
+        background: radial-gradient(circle at 35% 30%, #ffc285, var(--ember) 72%);
+        animation: respiro 3.2s ease-in-out infinite;
+    }
+    .orb.acceso .orb__core {
+        background: #fff3e0;
+        box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.45);
+    }
+    @keyframes respiro {
+        0%, 100% { box-shadow: 0 0 36px 6px var(--ember-soft), 0 0 70px 18px rgba(255, 157, 66, 0.14); }
+        50%      { box-shadow: 0 0 50px 10px var(--ember-soft), 0 0 95px 24px rgba(255, 157, 66, 0.22); }
+    }
+    .orb__state {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin: 0;
+    }
+
+    .btn {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 600;
+        font-size: 15px;
+        border: none;
+        border-radius: 12px;
+        padding: 14px 18px;
+        cursor: pointer;
+        transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:active { transform: scale(0.97); }
+    .btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
+
+    .btn--connect {
+        width: 100%;
+        background: var(--surface-2);
+        color: var(--text);
+        border: 1px solid rgba(255, 157, 66, 0.25);
+        margin-bottom: 24px;
+    }
+    .btn--connect.connesso {
+        background: var(--ember);
+        color: #1a1208;
+        border-color: transparent;
+    }
+
+    .gauge { margin: 4px 0 22px; }
+    .gauge__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 8px;
+    }
+    .gauge__value { font-size: 13px; color: var(--text); font-weight: 500; }
+    .gauge__track {
+        height: 8px;
+        border-radius: 999px;
+        background: var(--surface-2);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+    }
+    .gauge__fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        background: var(--good);
+        transition: width 0.5s ease, background 0.4s ease;
+    }
+    .gauge__fill.bassa   { background: var(--warn); }
+    .gauge__fill.critica { background: var(--danger); }
+    .gauge__volt {
+        display: block;
+        text-align: right;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 6px;
+    }
+
+    .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.06); margin: 0 0 22px; }
+
+    .controls { display: flex; gap: 10px; }
+    .btn--on  { flex: 1; background: var(--good); color: #11210a; }
+    .btn--off { flex: 1; background: var(--danger); color: #2a0a07; }
+
+    @media (prefers-reduced-motion: reduce) {
+        .orb.acceso { animation: none; }
+    }
+
+    @media (max-width: 360px) {
+        .panel { padding: 24px 20px; }
+        .wordmark { font-size: 24px; }
+    }
+</style>
 </head>
 <body>
 
-<div class="card">
-    <h2>💡 LAMPADA PRO</h2>
-    <button class="btn-blue" id="btnC" onclick="connetti()">CONNETTI BLUETOOTH</button>
+<main class="panel">
+    <header class="header">
+        <h1 class="wordmark">Lampada</h1>
+        <p class="eyebrow"><span>✺</span> Pannello di controllo</p>
+    </header>
 
-    <!-- Indicatore batteria -->
-    <div class="batt-wrap">
-        <div class="batt-icon">
-            <div class="batt-body">
-                <div class="batt-bar" id="b1"></div>
-                <div class="batt-bar" id="b2"></div>
-                <div class="batt-bar" id="b3"></div>
-                <div class="batt-bar" id="b4"></div>
-            </div>
-            <div class="batt-tip"></div>
+    <div class="orb-wrap">
+        <div class="orb" id="orb">
+            <div class="orb__core"></div>
         </div>
-        <div class="batt-label">Batteria: <span id="battPct">--%</span><br><span id="battV" style="font-size:11px; color:#666;">--.- V</span></div>
+        <p class="orb__state" id="orbState">Spenta</p>
     </div>
 
-    <hr style="border: 0.5px solid #333; margin: 16px 0;">
+    <button class="btn btn--connect" id="btnC" onclick="connetti()">Connetti</button>
 
-    <div style="display: flex; justify-content: space-between; width: 95%; margin: auto;">
-        <button class="btn-green" onclick="invia('ON')">ACCENDI</button>
-        <button class="btn-red"   onclick="invia('OFF')">SPEGNI</button>
+    <div class="gauge">
+        <div class="gauge__head">
+            <span>Batteria</span>
+            <span class="gauge__value" id="battPct">— %</span>
+        </div>
+        <div class="gauge__track">
+            <div class="gauge__fill" id="battFill"></div>
+        </div>
+        <span class="gauge__volt" id="battV">—.— V</span>
     </div>
-</div>
+
+    <hr class="divider">
+
+    <div class="controls">
+        <button class="btn btn--on"  onclick="invia('ON')">Accendi</button>
+        <button class="btn btn--off" onclick="invia('OFF')">Spegni</button>
+    </div>
+</main>
 
 <script>
     const S_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
     const C_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
     let charBLE, deviceBLE;
 
-    // Aggiorna le 4 tacche in base alla percentuale
-    function aggiornaBatteria(pct, volt) {
-        document.getElementById('battPct').innerText = pct + '%';
-        document.getElementById('battV').innerText   = parseFloat(volt).toFixed(2) + ' V';
-
-        const tacche = Math.ceil(pct / 25);
-
-        let classe = 'attiva';
-        if (pct <= 10) classe = 'critica';
-        else if (pct <= 30) classe = 'bassa';
-
-        for (let i = 1; i <= 4; i++) {
-            const bar = document.getElementById('b' + i);
-            bar.className = 'batt-bar';
-            if (i <= tacche) bar.classList.add(classe);
+    function aggiornaStatoLampada(acceso) {
+        const orb = document.getElementById('orb');
+        const stateText = document.getElementById('orbState');
+        if (acceso) {
+            orb.classList.add('acceso');
+            stateText.textContent = 'Accesa';
+        } else {
+            orb.classList.remove('acceso');
+            stateText.textContent = 'Spenta';
         }
+    }
+
+    function aggiornaBatteria(pct, volt) {
+        document.getElementById('battPct').textContent = pct + '%';
+        document.getElementById('battV').textContent = parseFloat(volt).toFixed(2) + ' V';
+
+        const fill = document.getElementById('battFill');
+        fill.style.width = pct + '%';
+        fill.classList.remove('bassa', 'critica');
+        if (pct <= 10) fill.classList.add('critica');
+        else if (pct <= 30) fill.classList.add('bassa');
     }
 
     // Riceve messaggi nel formato: STATO:<0/1>;BATT:<volt>;PERC:<percentuale>
@@ -119,6 +263,7 @@
             const [chiave, valore] = coppia.split(':');
             dati[chiave] = valore;
         });
+        if (dati.STATO !== undefined) aggiornaStatoLampada(dati.STATO === '1');
         if (dati.PERC !== undefined && dati.BATT !== undefined) {
             aggiornaBatteria(parseInt(dati.PERC), dati.BATT);
         }
@@ -149,8 +294,9 @@
                 gestisciNotifica(v);
             });
 
-            document.getElementById('btnC').innerText = "CONNESSO ✅";
-            document.getElementById('btnC').style.background = "#4caf50";
+            const btnC = document.getElementById('btnC');
+            btnC.textContent = "Connesso";
+            btnC.classList.add('connesso');
 
             await charBLE.writeValue(new TextEncoder().encode('BATT?'));
             console.log("6) Richiesta BATT? inviata");
@@ -165,6 +311,8 @@
         if (charBLE) {
             try {
                 await charBLE.writeValue(new TextEncoder().encode(msg));
+                if (msg === 'ON')  aggiornaStatoLampada(true);
+                if (msg === 'OFF') aggiornaStatoLampada(false);
             } catch (e) {
                 console.error("Errore invio comando:", e);
                 alert("Invio comando fallito: " + e.message);
@@ -177,5 +325,7 @@
     window.onbeforeunload = () => { if (deviceBLE) deviceBLE.gatt.disconnect(); };
 </script>
 </body>
+</html>
+
 </html>
 
