@@ -98,10 +98,8 @@
         document.getElementById('battPct').innerText = pct + '%';
         document.getElementById('battV').innerText   = parseFloat(volt).toFixed(2) + ' V';
 
-        // Quante tacche accendere (ogni tacca = 25%)
         const tacche = Math.ceil(pct / 25);
 
-        // Colore in base alla carica
         let classe = 'attiva';
         if (pct <= 10) classe = 'critica';
         else if (pct <= 30) classe = 'bassa';
@@ -113,41 +111,64 @@
         }
     }
 
+    // Riceve messaggi nel formato: STATO:<0/1>;BATT:<volt>;PERC:<percentuale>
+    function gestisciNotifica(stringa) {
+        console.log("Notifica ricevuta:", stringa);
+        const dati = {};
+        stringa.split(';').forEach(coppia => {
+            const [chiave, valore] = coppia.split(':');
+            dati[chiave] = valore;
+        });
+        if (dati.PERC !== undefined && dati.BATT !== undefined) {
+            aggiornaBatteria(parseInt(dati.PERC), dati.BATT);
+        }
+    }
+
     async function connetti() {
         try {
             deviceBLE = await navigator.bluetooth.requestDevice({
                 filters: [{ namePrefix: 'LAMPADA' }],
                 optionalServices: [S_UUID]
             });
-            const server  = await deviceBLE.gatt.connect();
+            console.log("1) Dispositivo selezionato:", deviceBLE.name);
+
+            const server = await deviceBLE.gatt.connect();
+            console.log("2) GATT server connesso");
+
             const service = await server.getPrimaryService(S_UUID);
+            console.log("3) Servizio trovato");
+
             charBLE = await service.getCharacteristic(C_UUID);
+            console.log("4) Characteristic trovata, proprieta':", charBLE.properties);
 
             await charBLE.startNotifications();
+            console.log("5) Notifiche attivate");
+
             charBLE.addEventListener('characteristicvaluechanged', (e) => {
                 const v = new TextDecoder().decode(e.target.value);
-                // Formato: BATT:<percentuale>:<tensione>
-                if (v.startsWith('BATT:')) {
-                    const p = v.split(':');
-                    aggiornaBatteria(parseInt(p[1]), p[2]);
-                }
+                gestisciNotifica(v);
             });
 
             document.getElementById('btnC').innerText = "CONNESSO ✅";
             document.getElementById('btnC').style.background = "#4caf50";
 
-            // Chiedi subito lo stato batteria senza aspettare i 30s
             await charBLE.writeValue(new TextEncoder().encode('BATT?'));
+            console.log("6) Richiesta BATT? inviata");
 
         } catch (e) {
-            console.error(e);
+            console.error("Errore connessione BLE (vedi i numeri sopra per capire a che punto si e' fermato):", e);
             alert("Connessione fallita: " + e.message);
         }
     }
 
     async function invia(msg) {
         if (charBLE) {
-            await charBLE.writeValue(new TextEncoder().encode(msg));
+            try {
+                await charBLE.writeValue(new TextEncoder().encode(msg));
+            } catch (e) {
+                console.error("Errore invio comando:", e);
+                alert("Invio comando fallito: " + e.message);
+            }
         } else {
             alert("Connettiti prima al dispositivo!");
         }
@@ -157,3 +178,4 @@
 </script>
 </body>
 </html>
+
