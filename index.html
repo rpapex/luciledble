@@ -293,6 +293,21 @@
         else if (pct <= 30) fill.classList.add('bassa');
     }
 
+    // Gestisce la disconnessione accidentale o volontaria
+    function onDisconnected() {
+        log("⚠️ Dispositivo disconnesso!");
+        const btnC = document.getElementById('btnC');
+        btnC.textContent = "Connetti";
+        btnC.classList.remove('connesso');
+        charBLE = null;
+        deviceBLE = null;
+        // Ripristina i campi grafici allo stato di default indefinito
+        document.getElementById('battPct').textContent = '— %';
+        document.getElementById('battV').textContent = '—.— V';
+        document.getElementById('battFill').style.width = '0%';
+        aggiornaStatoLampada(false);
+    }
+
     // Riceve messaggi nel formato: STATO:<0/1>;BATT:<volt>;PERC:<percentuale>
     function gestisciNotifica(stringa) {
         console.log("Notifica ricevuta:", stringa);
@@ -315,6 +330,9 @@
                 optionalServices: [S_UUID]
             });
             log("1) Dispositivo selezionato: " + deviceBLE.name);
+
+            // Aggancia il listener di disconnessione automatica
+            deviceBLE.addEventListener('gattserverdisconnected', onDisconnected);
 
             const server = await deviceBLE.gatt.connect();
             log("2) GATT server connesso");
@@ -366,7 +384,3 @@
 </script>
 </body>
 </html>
-
-
-</html>
-
